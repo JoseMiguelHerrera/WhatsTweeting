@@ -30,10 +30,10 @@ var d3Scale = require("d3-scale");
 
 function calculateWordSizes(words){
 	words.sort();
-	let prevWord = words[0];
-	let countPrevWord = 1;
-	let wordsWithCounts = [];
-	for( let i = 1; i < words.length; i++){
+	var prevWord = words[0];
+	var countPrevWord = 1;
+	var wordsWithCounts = [];
+	for( var i = 1; i < words.length; i++){
 		if(words[i] == prevWord){
 			countPrevWord ++;
 		}
@@ -46,19 +46,19 @@ function calculateWordSizes(words){
 		if(i == words.length -1)
 			wordsWithCounts.push({text: prevWord, count: countPrevWord});
 	}
-	let largestCount = -1;
-	let smallestCount = Infinity;
-	for(let i in wordsWithCounts){
+	var largestCount = -1;
+	var smallestCount = Infinity;
+	for(var i in wordsWithCounts){
 		if(wordsWithCounts[i].count > largestCount)
 			largestCount = wordsWithCounts[i].count;
 		if(wordsWithCounts[i].count < smallestCount)
 			smallestCount = wordsWithCounts[i].count;
 	}
-	let smallestFont = 15;
-	let largestFont = 100;
-	let m = ( largestFont - smallestFont) / (largestCount - smallestCount);
-	let b = largestFont - (m * largestCount);
-	for(let i in wordsWithCounts)
+	var smallestFont = 15;
+	var largestFont = 100;
+	var m = ( largestFont - smallestFont) / (largestCount - smallestCount);
+	var b = largestFont - (m * largestCount);
+	for(var i in wordsWithCounts)
 	{
 		wordsWithCounts[i].size = (m * wordsWithCounts[i].count + b);
 	}
@@ -70,13 +70,13 @@ function genSVG(words, callback){
 	wordsWithSizes = calculateWordSizes(words);
 	
 	
-	let convertToSVGString = function (svgAttr){
-		let fill = d3Scale.scaleOrdinal(d3Scale.schemeCategory20);
-		let svg = "";
+	var convertToSVGString = function (svgAttr){
+		var fill = d3Scale.scaleOrdinal(d3Scale.schemeCategory20);
+		var svg = "";
 		svg += "<svg width='960' height='500' version='1.1' xmlns='http://www.w3.org/2000/svg'>";
 		svg += "<g transform='translate(480,250)'>";
-		for(let i in svgAttr){
-			let text = svgAttr[i];
+		for(var i in svgAttr){
+			var text = svgAttr[i];
 			svg +="<text text-anchor='middle' transform='translate(" +text.x + "," 
 				+ text.y + ")rotate(" + text.rotate + ")' style='font-size: " 
 				+ text.size + "px; font-family: Impact; fill: " + fill(i) + ";'>";
@@ -100,28 +100,28 @@ function genSVG(words, callback){
 }
 
 function stringToWords(string){
-	let lowerCaseTxt = string.toLowerCase();
-	let words = lowerCaseTxt.split(/\s+/);
+	var lowerCaseTxt = string.toLowerCase();
+	var words = lowerCaseTxt.split(/\s+/);
 	if(words[words.length - 1] === "")
 		words.pop();
-	for(let i in words){
+	for(var i in words){
 		words[i] =  words[i].replace(/[^0-9a-zA-Z#]/g, '');
 	}
 	return words;
 }
 
 app.get("/getSVG", function(req, res){
-	let callback = function(svg){
+	var callback = function(svg){
 		res.send(svg);
 	}
-	let txt = 'How the Word Cloud Generator Works \
+	var txt = 'How the Word Cloud Generator Works \
 				The layout algorithm for positioning words without overlap is available on GitHub under an open source license as d3-cloud. \
 				Note that this is the only the layout algorithm and any code for converting text into words and rendering the final output requires additional development. \
 				As word placement can be quite #slow for more than a few hundred words, the layout algorithm can be run asynchronously, \
 				with a configurable time step size. This makes it possible to animate words as they are placed without stuttering. It is \
 				recommended to always use a time step even without animations as it prevents the browser’s event loop from blocking while placing the words. \
 				The layout algorithm itself is incredibly simple. For each word, starting with the most "important": '
-	let words = stringToWords(txt);
+	var words = stringToWords(txt);
 	//console.log(words);
 	//var words = ["Hello", "Hello", "Hello", "Hello", "Hello", "Hello","world", "normally", "world","you", "want", "more","world", "world", "words", "than", "this"]
 	genSVG(words, callback);
