@@ -16,7 +16,10 @@
     "morgan": "^1.6.1",
     "request": "^2.65.0",
     "twitter": "^1.7.0",
-    "watson-developer-cloud": "^1.0.0-beta.1"
+    "watson-developer-cloud": "^1.0.0-beta.1",
+	"d3-dispatch": "1",
+	"canvas":"1.6.x",
+	"d3-scale":"1.0.x"
   },
   "engines": {
     "node": ">=0.10"
