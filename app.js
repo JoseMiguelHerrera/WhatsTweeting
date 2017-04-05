@@ -42,8 +42,8 @@ var client = new Twitter({
 // Create the service wrapper
 var personalityInsights = watson.personality_insights({
   version: 'v2',
-  username: '<username>',
-  password: '<password>'
+  username: '5d14045a-3048-4a1f-ade8-c3e04d584a39',
+  password: 'P0aXaZBQRx4T'
 });
 
 app.get('/', function (req, res) {
@@ -62,7 +62,7 @@ function getTweetsPerPage(page, userName, totalTweets) {
         var tweetsOnly = tweet.map(function (t) {
           //no retweets
           if (typeof t.retweeted_status === 'undefined') {
-            return { text: t.text, timestamp: new Date(t.created_at) };
+            return { text: t.text, timestamp: new Date(t.created_at), page: page };
           } else {
             return null;
           }
@@ -85,21 +85,13 @@ function getTweetsPerPage(page, userName, totalTweets) {
 }
 
 
-app.post("/allTweets", function (req, res) {
-
+function getTweets(userName, pagenum, callback) {
   var totalTweets = { tweets: [], pagesAdded: 0 };
 
-  res.setHeader('Content-Type', 'application/json');
-  var userName = req.body.userName
-  console.log("Tweets from " + userName)
-
-
-  for (var i = 0; i < 16; i++) {
+  //note max page =17 (3200 tweets)
+  for (var i = 0; i < pagenum; i++) {
     getTweetsPerPage(i, userName, totalTweets).then(function (newTotalTweets) {
-
-
-
-      if (newTotalTweets.pagesAdded === 16) {
+      if (newTotalTweets.pagesAdded === pagenum) {
         newTotalTweets.tweets = newTotalTweets.tweets.sort(function (a, b) {
           if (a.timestamp < b.timestamp) {
             return -1;
@@ -107,55 +99,78 @@ app.post("/allTweets", function (req, res) {
             return 1;
         });
 
+        console.log("Got " + newTotalTweets.tweets.length + " tweets.")
 
-        var noDups = _.uniqWith(newTotalTweets.tweets, _.isEqual);
-        console.log("total tweets: " + noDups.length)
-        res.send(noDups)
+        packtext(newTotalTweets.tweets, function (text) {
+          callback(null, text);
+        });
+
       }
 
     }).catch(function (error) {
-      console.log(error);
+      callback(error, null)
     });
   }
-});
+}
 
+function packtext(tweets, callback) {
+  var packedString = "";
 
+  tweets.forEach(function (element) {
+    if (element.page != 0) {
+      var cleanedTweet;
 
-app.post("/tweetsSearch", function (req, res) {
-  res.setHeader('Content-Type', 'application/json');
+      var cleanedTweet = element.text.replace(/(?:https?|ftp):\/\/[\n\S]+/g, ''); // no URLs
+      var cleanedTweet = cleanedTweet.replace(/\r?\n|\r/g, " "); //no new line delimiter
+      var hashtagReg = new RegExp('#([^\\s]*)', 'g');
+      var cleanedTweet = cleanedTweet.replace(hashtagReg, ""); //no hashtags
+      var MentionReg = new RegExp('@([^\\s]*)', 'g');
+      var cleanedTweet = cleanedTweet.replace(MentionReg, ""); //no @ mentions
 
-  var userName = req.body.userName
-  console.log("Tweets from " + userName)
-
-  client.get('search/tweets', { q: "from:" + userName + " since:2016-03-29" }, function (error, tweet, response) {
-    if (error) console.log(error);
-    else {
-      console.log(tweet);  // Tweet body. 
-      //console.log(response);  // Raw response object.
-
-      var tweetsOnly = tweet.statuses.map(function (t) { return { text: t.text, timestamp: t.created_at } });
-
-      res.send(response)
+      packedString += " " + cleanedTweet;
     }
   });
+
+  callback(packedString);
+
+
+}
+
+
+
+app.post("/allTweets", function (req, res) {
+  res.setHeader('Content-Type', 'application/json');
+  var userName = req.body.userName
+  var pagenum = 5;
+
+  getTweets(userName, pagenum, function (err, tweets) {
+    res.send({ error: err, response: tweets });
+  })
+
 });
-
-
 
 
 app.post('/api/profile', function (req, res, next) {
   var parameters = extend(req.body, { acceptLanguage: i18n.lng() });
 
-  personalityInsights.profile(parameters, function (err, profile) {
-    if (err)
-      return next(err);
-    else
-      return res.json(profile);
+  var userName = parameters.text;
+  var pagenum = 17;
+
+  getTweets(userName, pagenum, function (err, tweetsText) {
+    parameters.text = tweetsText;
+    personalityInsights.profile(parameters, function (err, profile) {
+      if (err)
+        return next(err);
+      else
+        return res.json(profile);
+    });
   });
+
 });
 
 // error-handler settings
 require('./config/error-handler')(app);
+
 
 var port = process.env.PORT || process.env.VCAP_APP_PORT || 3000;
 app.listen(port);
