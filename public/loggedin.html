@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            $(function() {
+                $.get("http://0.0.0.0:3000/access-token" + location.search).done(function(user) {
+                    // Do something with your signed in user&#39;s information here.
+                });
+            });
+        </script>
+    </head>
+    <body></body>
+</html>
