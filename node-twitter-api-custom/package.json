@@ -1,0 +1,30 @@
+{
+  "dependencies": {
+    "oauth": ">=0.8.4",
+    "request": "*"
+  },
+  "description": "Simple module for using Twitter's API in node.js",
+  "devDependencies": {},
+  "directories": {},
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "keywords": [
+    "twitter",
+    "oauth",
+    "rest",
+    "streaming"
+  ],
+  "main": "./twitter",
+  "maintainers": [
+    {
+      "name": "renner96",
+      "email": "renner.raab@gmail.com"
+    }
+  ],
+  "name": "node-twitter-api-custom",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "scripts": {},
+  "version": "1.8.0"
+}

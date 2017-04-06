@@ -18,7 +18,8 @@
     "morgan": "^1.6.1",
     "request": "^2.65.0",
     "twitter": "^1.7.0",
-    "watson-developer-cloud": "^1.0.0-beta.1"
+    "watson-developer-cloud": "^1.0.0-beta.1",
+    "node-twitter-api-custom": "file:./node-twitter-api-custom"
   },
   "engines": {
     "node": ">=0.10"
