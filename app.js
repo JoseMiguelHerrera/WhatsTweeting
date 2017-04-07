@@ -24,37 +24,14 @@ require('./config/i18n')(app);
 // Bootstrap application settings
 require('./config/express')(app);
 
-app.get("/getSVG", function (req, res) {
-  var callback = function (svg) {
-    res.send(svg);
-  }
-  var txt = 'How the Word Cloud Generator Works \
-				The layout algorithm for positioning words without overlap is available on GitHub under an open source license as d3-cloud. \
-				Note that this is the only the layout algorithm and any code for converting text into words and rendering the final output requires additional development. \
-				As word placement can be quite #slow for more than a few hundred words, the layout algorithm can be run asynchronously, \
-				with a configurable time step size. This makes it possible to animate words as they are placed without stuttering. It is \
-				recommended to always use a time step even without animations as it prevents the browser’s event loop from blocking while placing the words. \
-				The layout algorithm itself is incredibly simple. For each word, starting with the most "important": '
-  var words = stringToWords(txt);
-  //console.log(words);
-  //var words = ["Hello", "Hello", "Hello", "Hello", "Hello", "Hello","world", "normally", "world","you", "want", "more","world", "world", "words", "than", "this"]
-  genSVG(words, callback);
-});
+//global twitter (secret) variables (to be added to env vars later)
+var consumer_key = 'nzHVwjmv85ctMPpF9rfS2OKxI';
+var consumer_secret = 't7jEvPmxTHdFJ2OXW8Q4Qjq2cBMZVWYeTJIp5AzYP8dcRnqXJj';
 
-
-
-//set up twitter credenials (move creds to env variables later)
-var client = new Twitter({
-  consumer_key: 'nzHVwjmv85ctMPpF9rfS2OKxI',
-  consumer_secret: 't7jEvPmxTHdFJ2OXW8Q4Qjq2cBMZVWYeTJIp5AzYP8dcRnqXJj',
-  access_token_key: '271179985-pAZEB7odsPBLBMwmiYUxqGvDqrUvd9SElnCYZ7ex',
-  access_token_secret: 'h8tJpf2L0nZswF3H5G0UkKrvyE0QZrkxvD3nNR2RQLhrn'
-});
-
-
+//for authorization
 var twitterauth = new TwitterAuth({
-  consumerKey: 'nzHVwjmv85ctMPpF9rfS2OKxI',
-  consumerSecret: 't7jEvPmxTHdFJ2OXW8Q4Qjq2cBMZVWYeTJIp5AzYP8dcRnqXJj',
+  consumerKey: consumer_key,
+  consumerSecret: consumer_secret,
   callback: "http://0.0.0.0:3000/loggedIn"
 });
 
@@ -70,7 +47,8 @@ app.get('/', function (req, res) {
 });
 
 
-function getTweetsPerPage(page, userName, totalTweets) {
+//twitter helper functions
+function getTweetsPerPage(page, userName, totalTweets, client) {
 
   return new Promise(function (resolve, reject) {
     client.get('statuses/user_timeline', { screen_name: userName, count: 200, page: page }, function (error, tweet, response) {
@@ -103,13 +81,12 @@ function getTweetsPerPage(page, userName, totalTweets) {
   });
 }
 
-
-function getTweets(userName, pagenum, callback) {
+function getTweets(userName, pagenum, client, callback) {
   var totalTweets = { tweets: [], pagesAdded: 0 };
 
   //note max page =17 (3200 tweets)
   for (var i = 0; i < pagenum; i++) {
-    getTweetsPerPage(i, userName, totalTweets).then(function (newTotalTweets) {
+    getTweetsPerPage(i, userName, totalTweets, client).then(function (newTotalTweets) {
       if (newTotalTweets.pagesAdded === pagenum) {
         newTotalTweets.tweets = newTotalTweets.tweets.sort(function (a, b) {
           if (a.timestamp < b.timestamp) {
@@ -153,14 +130,12 @@ function packtext(tweets, callback) {
   callback(packedString);
 }
 
-
+//log in routes
 app.get("/loggedIn", function (req, res) {
   console.log("callback from twitter!");
 
   res.sendFile('/public/loggedin.html', { root: __dirname });
 });
-
-
 
 var _requestSecret; //why is this here, isn't it keeping some kind of state?
 app.get("/request-token", function (req, res) {
@@ -181,7 +156,6 @@ app.get("/request-token", function (req, res) {
   });
 
 });
-
 
 app.get("/access-token", function (req, res) {
 
@@ -204,8 +178,7 @@ app.get("/access-token", function (req, res) {
       twitterauth.verifyCredentials(accessToken, accessSecret, function (err, user) {
         if (err)
           res.status(500).send(err);
-        else
-        {
+        else {
           console.log(user);
           res.send(user);
         }
@@ -234,19 +207,65 @@ app.post("/allTweets", function (req, res) {
 app.post('/api/profile', function (req, res, next) {
   var parameters = extend(req.body, { acceptLanguage: i18n.lng() });
 
+
+  //access token info will have to be passed in from front end (after they log in)
+  //var access_token_key= req.body.access_token_key;
+  //var access_token_secret= req.body.access_token_secret;
+  var access_token_key = '271179985-pAZEB7odsPBLBMwmiYUxqGvDqrUvd9SElnCYZ7ex';
+  var access_token_secret = 'h8tJpf2L0nZswF3H5G0UkKrvyE0QZrkxvD3nNR2RQLhrn';
+
   var userName = parameters.text;
   var pagenum = 17;
 
-  getTweets(userName, pagenum, function (err, tweetsText) {
+  //set up twitter client for this request
+  var client = new Twitter({
+    consumer_key: consumer_key,
+    consumer_secret: consumer_secret,
+    access_token_key: access_token_key,
+    access_token_secret: access_token_secret
+  });
+
+
+  getTweets(userName, pagenum, client, function (err, tweetsText) {
     parameters.text = tweetsText;
+    var words = stringToWords(tweetsText); //for cloud generation
+    console.log("obtained "+words.length+" words");
+
+    if(words.length<6000){
+      console.log("not enough words to generate personality profile, need at least 6000")
+    }
+
     personalityInsights.profile(parameters, function (err, profile) {
       if (err)
         return next(err);
-      else
-        return res.json(profile);
+      else {
+
+          genSVG(words, function(SVG){
+              return res.json({profile: profile, wordcloud: SVG});
+          });
+
+      }
     });
   });
 
+});
+
+
+app.get("/getSVG", function (req, res) {
+  var callback = function (svg) {
+    res.send(svg);
+  }
+  var txt = 'How the Word Cloud Generator Works \
+				The layout algorithm for positioning words without overlap is available on GitHub under an open source license as d3-cloud. \
+				Note that this is the only the layout algorithm and any code for converting text into words and rendering the final output requires additional development. \
+				As word placement can be quite #slow for more than a few hundred words, the layout algorithm can be run asynchronously, \
+				with a configurable time step size. This makes it possible to animate words as they are placed without stuttering. It is \
+				recommended to always use a time step even without animations as it prevents the browser’s event loop from blocking while placing the words. \
+				The layout algorithm itself is incredibly simple. For each word, starting with the most "important": '
+  var words = stringToWords(txt);
+  //console.log(words);
+  //var words = ["Hello", "Hello", "Hello", "Hello", "Hello", "Hello","world", "normally", "world","you", "want", "more","world", "world", "words", "than", "this"]
+  genSVG(words, callback);
 });
 
 // error-handler settings
