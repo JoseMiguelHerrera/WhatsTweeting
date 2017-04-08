@@ -100,7 +100,7 @@ $(document).ready(function () {
         text: $content.val(),
         language: language
       },
-      url: '/api/profile',
+      url: '/generateresults',
       dataType: 'json',
       success: function (response) {
         $loading.hide();

@@ -1,5 +1,4 @@
 //'use strict';
-
 var express = require('express');
 var bodyParser = require('body-parser');
 var watson = require('watson-developer-cloud');
@@ -10,12 +9,20 @@ var TwitterAuth = require("node-twitter-api-custom");
 var Canvas = require("canvas");
 var cloud = require("./cloud");
 var d3Scale = require("d3-scale");
-
+var jwt = require('jsonwebtoken');
+var Cloudant = require('cloudant');
+var fs = require("fs");
+var uuidV4 = require('uuid/v4');
+var path = require('path');
 var app = express();
+var baseURL = "http://0.0.0.0:3000"; //running locally
+//var baseURL = "https://whatstweeting.mybluemix.net"; //running on the cloud
+
 
 //set up body parser
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 app.use(bodyParser.json()); // support json encoded bodies
+app.use("/queryResults", express.static(__dirname + '/queryResults'));
 
 
 //i18n settings
@@ -32,7 +39,7 @@ var consumer_secret = 't7jEvPmxTHdFJ2OXW8Q4Qjq2cBMZVWYeTJIp5AzYP8dcRnqXJj';
 var twitterauth = new TwitterAuth({
   consumerKey: consumer_key,
   consumerSecret: consumer_secret,
-  callback: "http://0.0.0.0:3000/loggedIn"
+  callback: baseURL + "/access-token"
 });
 
 // Create the service wrapper
@@ -41,6 +48,73 @@ var personalityInsights = watson.personality_insights({
   username: '5d14045a-3048-4a1f-ade8-c3e04d584a39',
   password: 'P0aXaZBQRx4T'
 });
+
+//database variables
+var whatsTweetingDB;
+var cloudantUsername = "c40ec94c-13ce-47d0-9aaf-9cbb2c530b6b-bluemix";
+var cloudantPassword = "9b1041120a5a2951f5ab0a4b7c6da7b3f6a39eb03ebebf5bc5321eea14078370";
+var cloudant = Cloudant({ account: cloudantUsername, password: cloudantPassword });
+//database functions
+var createDataBase = function (callback) {
+  cloudant.db.create('whatstweeting', function (err, data) {
+    if (err) {
+      if (err.error === "file_exists") {
+        whatsTweetingDB = cloudant.db.use('whatstweeting');
+        callback(null, null); //db already exists
+      } else {
+        callback(err, null); //creation error
+      }
+    }
+    else { //created successfully
+      whatsTweetingDB = cloudant.db.use('whatstweeting');
+      callback(null, data);
+    }
+  });
+}
+
+// create a document
+var createDocument = function (id, val, callback) {
+  // we are specifying the id of the document so we can update and delete it later
+  whatsTweetingDB.insert({ _id: id, whatsTweetingData: val }, function (err, data) {
+    callback(err, data);
+  });
+};
+
+// read a document
+var readDocument = function (id, callback) {
+  whatsTweetingDB.get(id, function (err, data) {
+    callback(err, data);
+  });
+};
+
+// update a document
+var updateDocument = function (id, document, callback) {
+  // we are specifying the id of the document so we can update and delete it later
+  whatsTweetingDB.insert({ _id: id, _rev: document._rev, whatsTweetingData: document.whatsTweetingData }, function (err, data) {
+    callback(err, data);
+  });
+};
+
+
+var jwtSecret = new Buffer('mySuperSecret-JWT_secret_Token').toString('base64');
+
+
+
+//creat DB or link to existing DB as soon as server starts
+createDataBase(function (err, resp) {
+  if (err) { //creation error
+    console.log("fatal error creating database, please start up the server again. error: " + err);
+    process.exit();
+  } else {
+    if (!resp)
+      console.log("whatstweeting db already existed, ready to use")
+    else
+      console.log("whatstweeting db created, ready to use")
+  }
+});
+
+
+
 
 app.get('/', function (req, res) {
   res.render('index', { ct: req._csrfToken });
@@ -130,14 +204,7 @@ function packtext(tweets, callback) {
   callback(packedString);
 }
 
-//log in routes
-app.get("/loggedIn", function (req, res) {
-  console.log("callback from twitter!");
-
-  res.sendFile('/public/loggedin.html', { root: __dirname });
-});
-
-var _requestSecret; //why is this here, isn't it keeping some kind of state?
+var _requestSecret;
 app.get("/request-token", function (req, res) {
 
   twitterauth.getRequestToken(function (err, requestToken, requestSecret) {
@@ -179,73 +246,146 @@ app.get("/access-token", function (req, res) {
         if (err)
           res.status(500).send(err);
         else {
-          console.log(user);
-          res.send(user);
+          var id = user.id;
+          var screen_name = user.screen_name;
+          var token = jwt.sign({ id: id, screen_name: screen_name }, jwtSecret, { expiresIn: 60 * 60 * 24 });
+
+          readDocument(id.toString(), function (err, data) {
+            if (err) {
+              if (err.error === "not_found") {
+                //create new user
+                var newUser = { accessToken: accessToken, accessSecret: accessSecret, queries: [] }
+                createDocument(id.toString(), newUser, function (err, data) {
+                  if (err) {
+                    console.log(err);
+                    console.log("creation of a new user has failed");
+                  } else {
+                    console.log("created user")
+                  }
+                });
+              } else {
+                console.log(err); //weird error writting to DB
+              }
+            } else {
+              console.log("user with id " + id.toString() + " already existed");
+            }
+          });
+          res.redirect(baseURL + "?jwt=" + token);
+
         }
       });
     }
   });
-
-
-
 });
 
+app.post("/getResultsUser", function (req, res) {
+  //var userID = req.body.userID;
+  var userID = "271179985" //jose's userID
+  //fetch access token from DB using userID key
+  readDocument(userID, function (err, data) {
+    if (err) {
+      console.log("error occurred while reading user profile info")
+      console.log(err);
+      res.send(err); //error retrieving user data
+    } else {
 
-
-app.post("/allTweets", function (req, res) {
-  res.setHeader('Content-Type', 'application/json');
-  var userName = req.body.userName
-  var pagenum = 5;
-
-  getTweets(userName, pagenum, function (err, tweets) {
-    res.send({ error: err, response: tweets });
-  })
-
-});
-
-
-app.post('/api/profile', function (req, res, next) {
-  var parameters = extend(req.body, { acceptLanguage: i18n.lng() });
-
-
-  //access token info will have to be passed in from front end (after they log in)
-  //var access_token_key= req.body.access_token_key;
-  //var access_token_secret= req.body.access_token_secret;
-  var access_token_key = '271179985-pAZEB7odsPBLBMwmiYUxqGvDqrUvd9SElnCYZ7ex';
-  var access_token_secret = 'h8tJpf2L0nZswF3H5G0UkKrvyE0QZrkxvD3nNR2RQLhrn';
-
-  var userName = parameters.text;
-  var pagenum = 17;
-
-  //set up twitter client for this request
-  var client = new Twitter({
-    consumer_key: consumer_key,
-    consumer_secret: consumer_secret,
-    access_token_key: access_token_key,
-    access_token_secret: access_token_secret
-  });
-
-
-  getTweets(userName, pagenum, client, function (err, tweetsText) {
-    parameters.text = tweetsText;
-    var words = stringToWords(tweetsText); //for cloud generation
-    console.log("obtained "+words.length+" words");
-
-    if(words.length<6000){
-      console.log("not enough words to generate personality profile, need at least 6000")
+      res.send(data.whatsTweetingData.queries);
     }
+  });
+});
 
-    personalityInsights.profile(parameters, function (err, profile) {
-      if (err)
-        return next(err);
-      else {
 
-          genSVG(words, function(SVG){
-              return res.json({profile: profile, wordcloud: SVG});
-          });
+//don't know why we need this but here it is
+app.post("/getresults", function (req, res) {
+  var resultsID = req.body.resultsID;
+  res.send({ resultsURL: baseURL + "/queryResults/" + resultsID });
+});
 
-      }
-    });
+
+app.post('/generateresults', function (req, res, next) {
+  //{ recaptcha: '', text: 'ValentinoKhan', language: 'en' }
+  //var parameters = extend(req.body, { acceptLanguage: i18n.lng() }); //get rid after connect to real front end
+  //console.log(parameters);
+  //{ recaptcha: '',text: 'ChemBros',language: 'en',acceptLanguage: 'en-US' }
+
+
+   //real paramenters, once connected to real front end
+  var userID = req.body.userID;
+  var numTweets = parseInt(req.body.numTweets);
+  var twitterHandle = req.body.twitterHandle;
+  var parameters = {recaptcha: '', text: req.text, language: 'en', acceptLanguage: i18n.lng() }
+
+  //var userID = "271179985" //jose's userID for testing
+  //var numTweets = 3200; //for testing 
+  //var twitterHandle = parameters.text; //the handle of the user we're going to analyse, for testing
+
+
+  //fetch access token from DB using userID key
+  readDocument(userID, function (err, data) {
+    if (err) {
+      console.log("error occurred while reading user profile info")
+      console.log(err);
+      res.send(err); //error retrieving user data
+    } else {
+
+      console.log(data);
+
+      var access_token_key = data.whatsTweetingData.accessToken
+      var access_token_secret = data.whatsTweetingData.accessSecret
+      var pagenum = Math.floor(numTweets / 200) + 1;
+
+      //set up twitter client for this request
+      var client = new Twitter({
+        consumer_key: consumer_key,
+        consumer_secret: consumer_secret,
+        access_token_key: access_token_key,
+        access_token_secret: access_token_secret
+      });
+
+      getTweets(twitterHandle, pagenum, client, function (err, tweetsText) {
+        parameters.text = tweetsText;
+        var words = stringToWords(tweetsText); //for cloud generation
+        console.log("obtained " + words.length + " words");
+
+        if (words.length < 6000) {
+          console.log("not enough words to generate personality profile, need at least 6000")
+        }
+
+        personalityInsights.profile(parameters, function (err, profile) {
+          if (err)
+            return next(err);
+          else {
+
+            genSVG(words, function (SVG) {
+              //save results to DB (only URL to svg)
+              var results = { profile: profile, wordcloud: SVG };
+
+              var resultID = uuidV4();
+              fs.writeFile(__dirname + "/queryResults/" + resultID, JSON.stringify(results), function (error) {
+                if (error) {
+                  console.error("write error:  " + error.message);
+                } else {
+                  console.log("Successful Write to " + __dirname);
+                  data.whatsTweetingData.queries.push(JSON.stringify({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID }));
+                  updateDocument(userID, data, function (err, data) {
+                    if (err) {
+                      console.log("error updating profile for user ID " + userID);
+                      console.log(err);
+                    } else {
+                      console.log("successfully updated document for userID " + userID);
+                    }
+                  });
+                }
+              });
+
+              return res.json({ profile: profile, wordcloud: SVG }); //return the results just generated
+            });
+
+          }
+        });
+      });
+
+    }
   });
 
 });
@@ -270,10 +410,11 @@ app.get("/getSVG", function (req, res) {
 
 // error-handler settings
 require('./config/error-handler')(app);
-
-
 var port = process.env.PORT || process.env.VCAP_APP_PORT || 3000;
+
+
 app.listen(port);
+
 console.log('listening at:', port);
 
 

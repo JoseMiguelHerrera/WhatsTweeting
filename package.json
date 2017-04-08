@@ -5,6 +5,7 @@
   "dependencies": {
     "body-parser": "^1.17.1",
     "canvas": "1.6.x",
+    "cloudant": "^1.7.1",
     "cookie-parser": "^1.4.0",
     "csurf": "^1.8.3",
     "d3-dispatch": "1",
@@ -15,11 +16,13 @@
     "express-secure-only": "^0.2.1",
     "helmet": "^0.13.0",
     "i18next": "^1.10.2",
+    "jsonwebtoken": "^7.3.0",
     "morgan": "^1.6.1",
+    "node-twitter-api-custom": "file:./node-twitter-api-custom",
     "request": "^2.65.0",
     "twitter": "^1.7.0",
-    "watson-developer-cloud": "^1.0.0-beta.1",
-    "node-twitter-api-custom": "file:./node-twitter-api-custom"
+    "uuid": "^3.0.1",
+    "watson-developer-cloud": "^1.0.0-beta.1"
   },
   "engines": {
     "node": ">=0.10"
