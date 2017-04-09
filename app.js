@@ -14,9 +14,10 @@ var Cloudant = require('cloudant');
 var fs = require("fs");
 var uuidV4 = require('uuid/v4');
 var path = require('path');
+var cors = require('cors')
 var app = express();
-var baseURL = "http://0.0.0.0:3000"; //running locally
-//var baseURL = "https://whatstweeting.mybluemix.net"; //running on the cloud
+//var baseURL = "http://0.0.0.0:3000"; //running locally
+var baseURL = "https://whatstweeting.mybluemix.net"; //running on the cloud
 
 
 //set up body parser
@@ -24,6 +25,9 @@ app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 app.use(bodyParser.json()); // support json encoded bodies
 app.use("/queryResults", express.static(__dirname + '/queryResults'));
 
+
+//enable cors (for testing)
+app.use(cors()) //enable CORS
 
 //i18n settings
 require('./config/i18n')(app);
@@ -303,10 +307,8 @@ app.post("/getresults", function (req, res) {
 
 
 app.post('/generateresults', function (req, res, next) {
-  //{ recaptcha: '', text: 'ValentinoKhan', language: 'en' }
   //var parameters = extend(req.body, { acceptLanguage: i18n.lng() }); //get rid after connect to real front end
   //console.log(parameters);
-  //{ recaptcha: '',text: 'ChemBros',language: 'en',acceptLanguage: 'en-US' }
 
 
    //real paramenters, once connected to real front end
@@ -366,7 +368,7 @@ app.post('/generateresults', function (req, res, next) {
                   console.error("write error:  " + error.message);
                 } else {
                   console.log("Successful Write to " + __dirname);
-                  data.whatsTweetingData.queries.push(JSON.stringify({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID }));
+                  data.whatsTweetingData.queries.push({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID });
                   updateDocument(userID, data, function (err, data) {
                     if (err) {
                       console.log("error updating profile for user ID " + userID);
@@ -463,7 +465,7 @@ function genSVG(words, callback) {
   var convertToSVGString = function (svgAttr) {
     var fill = d3Scale.scaleOrdinal(d3Scale.schemeCategory20);
     var svg = "";
-    svg += "<svg width='960' height='500' version='1.1' xmlns='http://www.w3.org/2000/svg'>";
+    svg += "<svg width='720' height='500' version='1.1' xmlns='http://www.w3.org/2000/svg'>";
     svg += "<g transform='translate(480,250)'>";
     for (var i in svgAttr) {
       var text = svgAttr[i];
@@ -478,7 +480,7 @@ function genSVG(words, callback) {
     callback(svg);
   }
 
-  cloud().size([960, 500])
+  cloud().size([720, 500])
     .canvas(function () { return new Canvas(1, 1); })
     .words(wordsWithSizes)
     .padding(5)

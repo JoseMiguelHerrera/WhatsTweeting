@@ -7,6 +7,7 @@
     "canvas": "1.6.x",
     "cloudant": "^1.7.1",
     "cookie-parser": "^1.4.0",
+    "cors": "^2.8.3",
     "csurf": "^1.8.3",
     "d3-dispatch": "1",
     "d3-scale": "1.0.x",
