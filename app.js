@@ -363,12 +363,12 @@ app.post('/generateresults', function (req, res, next) {
               var results = { profile: profile, wordcloud: SVG };
 
               var resultID = uuidV4();
-              fs.writeFile(__dirname + "/queryResults/" + resultID, JSON.stringify(results), function (error) {
+              fs.writeFile(__dirname + "/queryResults/" + resultID+".json", JSON.stringify(results), function (error) {
                 if (error) {
                   console.error("write error:  " + error.message);
                 } else {
                   console.log("Successful Write to " + __dirname);
-                  data.whatsTweetingData.queries.push({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID });
+                  data.whatsTweetingData.queries.push({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID, ID: resultID});
                   updateDocument(userID, data, function (err, data) {
                     if (err) {
                       console.log("error updating profile for user ID " + userID);
