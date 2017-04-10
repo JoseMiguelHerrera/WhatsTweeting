@@ -99,6 +99,28 @@ var updateDocument = function (id, document, callback) {
   });
 };
 
+var queryDocument = function(twitterHandle, callback){
+	var selector = {
+		whatsTweetingData:{
+			queries:{
+				$elemMatch:{
+					twitterHandle: twitterHandle
+				}
+			}
+		}
+	};
+	whatsTweetingDB.find({selector:selector}, function(err, result) {
+		if(err){
+			callback(err,null);
+		}
+		console.log('Found %d documents with twitterHandle ' + twitterHandle, result.docs.length);
+		for (var i = 0; i < result.docs.length; i++) {
+			console.log('  Doc id: %s', result.docs[i]._id);
+		}
+		callback(null,result);
+	});
+}
+
 
 var jwtSecret = new Buffer('mySuperSecret-JWT_secret_Token').toString('base64');
 
@@ -296,6 +318,28 @@ app.post("/getResultsUser", function (req, res) {
       res.send(data.whatsTweetingData.queries);
     }
   });
+});
+
+app.post( "/getcloudstwitter", function(req,res){
+	var twitterHandle = req.body.twitterHandle;
+	queryDocument(twitterHandle, function(error, data){
+		if(error){
+			res.send(error);
+			return;
+		}
+		var resultUrls = {urls:[]};
+		for(var i =0 ; i < data.docs.length; i++){
+			var queries = data.docs[i].whatsTweetingData.queries;
+			for(var j = 0; j < queries.length; j++){
+				if(queries[j].twitterHandle && queries[j].resultsURL){
+					if(queries[j].twitterHandle === twitterHandle){
+						resultUrls.urls.push(queries[j].resultsURL);
+					}
+				}
+			}
+		}
+		res.send(resultUrls);
+	});
 });
 
 
