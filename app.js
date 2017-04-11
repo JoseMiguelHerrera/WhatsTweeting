@@ -125,7 +125,6 @@ var queryDocument = function(twitterHandle, callback){
 var jwtSecret = new Buffer('mySuperSecret-JWT_secret_Token').toString('base64');
 
 
-
 //creat DB or link to existing DB as soon as server starts
 createDataBase(function (err, resp) {
   if (err) { //creation error
@@ -138,9 +137,6 @@ createDataBase(function (err, resp) {
       console.log("whatstweeting db created, ready to use")
   }
 });
-
-
-
 
 app.get('/', function (req, res) {
   res.render('index', { ct: req._csrfToken });
@@ -305,8 +301,8 @@ app.get("/access-token", function (req, res) {
 });
 
 app.post("/getResultsUser", function (req, res) {
-  //var userID = req.body.userID;
-  var userID = "271179985" //jose's userID
+  var userID = req.body.userID;
+  //var userID = "271179985" //jose's userID
   //fetch access token from DB using userID key
   readDocument(userID, function (err, data) {
     if (err) {
