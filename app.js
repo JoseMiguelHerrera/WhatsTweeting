@@ -99,26 +99,26 @@ var updateDocument = function (id, document, callback) {
   });
 };
 
-var queryDocument = function(twitterHandle, callback){
-	var selector = {
-		whatsTweetingData:{
-			queries:{
-				$elemMatch:{
-					twitterHandle: twitterHandle
-				}
-			}
-		}
-	};
-	whatsTweetingDB.find({selector:selector}, function(err, result) {
-		if(err){
-			callback(err,null);
-		}
-		console.log('Found %d documents with twitterHandle ' + twitterHandle, result.docs.length);
-		for (var i = 0; i < result.docs.length; i++) {
-			console.log('  Doc id: %s', result.docs[i]._id);
-		}
-		callback(null,result);
-	});
+var queryDocument = function (twitterHandle, callback) {
+  var selector = {
+    whatsTweetingData: {
+      queries: {
+        $elemMatch: {
+          twitterHandle: twitterHandle
+        }
+      }
+    }
+  };
+  whatsTweetingDB.find({ selector: selector }, function (err, result) {
+    if (err) {
+      callback(err, null);
+    }
+    console.log('Found %d documents with twitterHandle ' + twitterHandle, result.docs.length);
+    for (var i = 0; i < result.docs.length; i++) {
+      console.log('  Doc id: %s', result.docs[i]._id);
+    }
+    callback(null, result);
+  });
 }
 
 
@@ -316,30 +316,33 @@ app.post("/getResultsUser", function (req, res) {
   });
 });
 
-app.post( "/getcloudstwitter", function(req,res){
-	var twitterHandle = req.body.twitterHandle;
-	queryDocument(twitterHandle, function(error, data){
-		if(error){
-			res.send(error);
-			return;
-		}
-		var resultUrls = {urls:[]};
-		for(var i =0 ; i < data.docs.length; i++){
-			var queries = data.docs[i].whatsTweetingData.queries;
-			for(var j = 0; j < queries.length; j++){
-				if(queries[j].twitterHandle && queries[j].resultsURL){
-					if(queries[j].twitterHandle === twitterHandle){
-						resultUrls.urls.push(queries[j].resultsURL);
-					}
-				}
-			}
-		}
-		res.send(resultUrls);
-	});
+app.post("/getcloudstwitter", function (req, res) {
+  var twitterHandle = req.body.twitterHandle;
+  //clean up @s
+  var MentionReg = new RegExp('@([^\\s]*)', 'g');
+  twitterHandle = twitterHandle.replace(MentionReg, ""); //no @ mentions
+
+  queryDocument(twitterHandle, function (error, data) {
+    if (error) {
+      res.send(error);
+      return;
+    }
+    var resultUrls = { urls: [] };
+    for (var i = 0; i < data.docs.length; i++) {
+      var queries = data.docs[i].whatsTweetingData.queries;
+      for (var j = 0; j < queries.length; j++) {
+        if (queries[j].twitterHandle && queries[j].resultsURL) {
+          if (queries[j].twitterHandle === twitterHandle) {
+            resultUrls.urls.push(queries[j].resultsURL);
+          }
+        }
+      }
+    }
+    res.send(resultUrls);
+  });
 });
 
 
-//don't know why we need this but here it is
 app.post("/getresults", function (req, res) {
   var resultsID = req.body.resultsID;
   res.send({ resultsURL: baseURL + "/queryResults/" + resultsID });
@@ -351,15 +354,22 @@ app.post('/generateresults', function (req, res, next) {
   //console.log(parameters);
 
 
-   //real paramenters, once connected to real front end
+  //real paramenters, once connected to real front end
   var userID = req.body.userID;
   var numTweets = parseInt(req.body.numTweets);
   var twitterHandle = req.body.twitterHandle;
-  var parameters = {recaptcha: '', text: req.text, language: 'en', acceptLanguage: i18n.lng() }
+  var parameters = { recaptcha: '', text: req.text, language: 'en', acceptLanguage: i18n.lng() }
 
   //var userID = "271179985" //jose's userID for testing
   //var numTweets = 3200; //for testing 
   //var twitterHandle = parameters.text; //the handle of the user we're going to analyse, for testing
+
+
+  //clean @ from handle
+  var MentionReg = new RegExp('@([^\\s]*)', 'g');
+  var twitterHandle = twitterHandle.replace(MentionReg, ""); //no @ mentions
+
+
 
 
   //fetch access token from DB using userID key
@@ -403,12 +413,12 @@ app.post('/generateresults', function (req, res, next) {
               var results = { profile: profile, wordcloud: SVG };
 
               var resultID = uuidV4();
-              fs.writeFile(__dirname + "/queryResults/" + resultID+".json", JSON.stringify(results), function (error) {
+              fs.writeFile(__dirname + "/queryResults/" + resultID + ".json", JSON.stringify(results), function (error) {
                 if (error) {
                   console.error("write error:  " + error.message);
                 } else {
                   console.log("Successful Write to " + __dirname);
-                  data.whatsTweetingData.queries.push({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID, ID: resultID});
+                  data.whatsTweetingData.queries.push({ twitterHandle: twitterHandle, numTweets: numTweets, timestamp: new Date(), resultsURL: baseURL + "/queryResults/" + resultID, ID: resultID });
                   updateDocument(userID, data, function (err, data) {
                     if (err) {
                       console.log("error updating profile for user ID " + userID);
@@ -456,7 +466,6 @@ var port = process.env.PORT || process.env.VCAP_APP_PORT || 3000;
 
 
 app.listen(port);
-
 console.log('listening at:', port);
 
 
