@@ -16,9 +16,6 @@ var uuidV4 = require('uuid/v4');
 var path = require('path');
 var cors = require('cors')
 var app = express();
-//var baseURL = "http://0.0.0.0:3000"; //running locally
-var baseURL = "https://whatstweeting.mybluemix.net"; //running on the cloud
-
 
 //set up body parser
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
@@ -34,6 +31,18 @@ require('./config/i18n')(app);
 
 // Bootstrap application settings
 require('./config/express')(app);
+
+
+var port = process.env.PORT || process.env.VCAP_APP_PORT || 3000;
+if (process.env.VCAP_SERVICES) {
+  console.log('This app is running on Bluemix.');
+  var baseURL = "https://whatstweeting.mybluemix.net"; //running on the cloud
+
+}
+else {
+  var baseURL = "http://0.0.0.0:" + port; //running locally
+   console.log('This app is running on '+baseURL);
+}
 
 //global twitter (secret) variables (to be added to env vars later)
 var consumer_key = 'nzHVwjmv85ctMPpF9rfS2OKxI';
@@ -321,7 +330,7 @@ app.post("/getcloudstwitter", function (req, res) {
   //clean up @s
   //var MentionReg = new RegExp('@([^\\s]*)', 'g');
   //var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
-  var twitterHandle = twitterHandleRaw.replace(/@/g , "");
+  var twitterHandle = twitterHandleRaw.replace(/@/g, "");
 
   queryDocument(twitterHandle, function (error, data) {
     if (error) {
@@ -368,7 +377,7 @@ app.post('/generateresults', function (req, res, next) {
 
   //clean @ from handle
   //var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
-  var twitterHandle = twitterHandleRaw.replace(/@/g , "");
+  var twitterHandle = twitterHandleRaw.replace(/@/g, "");
 
 
 
@@ -401,7 +410,7 @@ app.post('/generateresults', function (req, res, next) {
         console.log("obtained " + words.length + " words");
 
         if (words.length < 6000) {
-          console.log("not enough words to generate personality profile, need at least 6000")
+          console.log("not enough words to generate an accurate personality profile, need at least 6000 for it to be really accurate!")
         }
 
         personalityInsights.profile(parameters, function (err, profile) {
@@ -463,11 +472,12 @@ app.get("/getSVG", function (req, res) {
 
 // error-handler settings
 require('./config/error-handler')(app);
-var port = process.env.PORT || process.env.VCAP_APP_PORT || 3000;
+
 
 
 app.listen(port);
 console.log('listening at:', port);
+
 
 
 //svg functions
