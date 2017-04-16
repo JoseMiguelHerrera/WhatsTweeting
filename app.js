@@ -317,10 +317,10 @@ app.post("/getResultsUser", function (req, res) {
 });
 
 app.post("/getcloudstwitter", function (req, res) {
-  var twitterHandle = req.body.twitterHandle;
+  var twitterHandleRaw = req.body.twitterHandle;
   //clean up @s
   var MentionReg = new RegExp('@([^\\s]*)', 'g');
-  twitterHandle = twitterHandle.replace(MentionReg, ""); //no @ mentions
+  var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
 
   queryDocument(twitterHandle, function (error, data) {
     if (error) {
@@ -357,7 +357,7 @@ app.post('/generateresults', function (req, res, next) {
   //real paramenters, once connected to real front end
   var userID = req.body.userID;
   var numTweets = parseInt(req.body.numTweets);
-  var twitterHandle = req.body.twitterHandle;
+  var twitterHandleRaw = req.body.twitterHandle;
   var parameters = { recaptcha: '', text: req.text, language: 'en', acceptLanguage: i18n.lng() }
 
   //var userID = "271179985" //jose's userID for testing
@@ -367,7 +367,7 @@ app.post('/generateresults', function (req, res, next) {
 
   //clean @ from handle
   var MentionReg = new RegExp('@([^\\s]*)', 'g');
-  var twitterHandle = twitterHandle.replace(MentionReg, ""); //no @ mentions
+  var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
 
 
 
