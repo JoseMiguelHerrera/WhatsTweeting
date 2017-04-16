@@ -319,8 +319,9 @@ app.post("/getResultsUser", function (req, res) {
 app.post("/getcloudstwitter", function (req, res) {
   var twitterHandleRaw = req.body.twitterHandle;
   //clean up @s
-  var MentionReg = new RegExp('@([^\\s]*)', 'g');
-  var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
+  //var MentionReg = new RegExp('@([^\\s]*)', 'g');
+  //var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
+  var twitterHandle = twitterHandleRaw.replace(/@/g , "");
 
   queryDocument(twitterHandle, function (error, data) {
     if (error) {
@@ -366,8 +367,8 @@ app.post('/generateresults', function (req, res, next) {
 
 
   //clean @ from handle
-  var MentionReg = new RegExp('@([^\\s]*)', 'g');
-  var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
+  //var twitterHandle = twitterHandleRaw.replace(MentionReg, ""); //no @ mentions
+  var twitterHandle = twitterHandleRaw.replace(/@/g , "");
 
 
 
